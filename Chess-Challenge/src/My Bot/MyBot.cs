@@ -9,7 +9,9 @@ public class MyBot : IChessBot
     private string color;
     private string opponentColor;
     private double QValue = 0.0f;
-
+    private int pieceCount;
+    
+    //v1.1
     public Move Think(Board board, Timer timer)
     {
         Move[] actions = board.GetLegalMoves();
@@ -18,10 +20,13 @@ public class MyBot : IChessBot
         {
             this.color = board.IsWhiteToMove ? "white" : "black";
             this.opponentColor = !board.IsWhiteToMove ? "white" : "black";
+            this.pieceCount = countPieces(board, this.color);
         }
 
-        Dictionary<double, Move> qMap = Q(board, actions, timer, 1);
+        Dictionary<double, Move> qMap = Q(board, actions, timer, 3);
         Move decision = policy(qMap);
+
+        this.pieceCount = countPieces(board, this.color);
 
         iteration += 1;
 
@@ -32,7 +37,7 @@ public class MyBot : IChessBot
     {
         //learning rate, discount
         double a = 0.1f;
-        double y = 0.1f;
+        double y = 1.0f;
 
         Dictionary<double, Move> qMap = new Dictionary<double, Move>();
         double q = 0.0f;
@@ -68,12 +73,26 @@ public class MyBot : IChessBot
         Random rand = new Random();
         rand.NextDouble();
 
+        //reward captures
+        //TODO add individual piece value
         if (move.IsCapture)
         {
             r += 0.1f;
         }
 
-        return r + timer.MillisecondsRemaining + rand.NextDouble();
+        //penalize if in check
+        if(board.IsInCheck()) 
+        {
+            r -= 0.5f;
+        }
+        
+        //penalize losing pieces
+        if(this.pieceCount < countPieces(board, this.color)) 
+        {
+            r -= 0.1f;
+        }
+
+        return r + rand.NextDouble();
     }
 
     private Move policy(Dictionary<double, Move> qMap)
@@ -94,5 +113,17 @@ public class MyBot : IChessBot
             }
         }
         return max;
+    }
+
+    int countPieces(Board board, string color) 
+    {
+        string pieces = board.WhitePiecesBitboard.ToString();
+
+        if(color == "white") 
+        {
+            return pieces.Length - pieces.Replace("1","").Length;
+        } 
+
+        return pieces.Length - pieces.Replace("0","").Length;
     }
 }
