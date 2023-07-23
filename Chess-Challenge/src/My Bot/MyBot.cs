@@ -77,7 +77,27 @@ public class MyBot : IChessBot
         //TODO add individual piece value
         if (move.IsCapture)
         {
-            r += 0.1f;
+            switch(move.CapturePieceType) 
+            {
+                case ChessChallenge.API.PieceType.Pawn:
+                    r += 0.1f;
+                    break;
+                case ChessChallenge.API.PieceType.Knight:
+                    r += 0.3f;
+                    break;
+                case ChessChallenge.API.PieceType.Bishop:
+                    r += 0.4f;
+                    break;
+                case ChessChallenge.API.PieceType.Rook:
+                    r += 0.4f;
+                    break;
+                case ChessChallenge.API.PieceType.Queen:
+                    r += 0.6f;
+                    break;
+                case ChessChallenge.API.PieceType.King:
+                    r += 1.0f;
+                    break;
+            }
         }
 
         //penalize if in check
@@ -87,6 +107,7 @@ public class MyBot : IChessBot
         }
         
         //penalize losing pieces
+        //TODO: penalize based off of loss
         if(this.pieceCount < countPieces(board, this.color)) 
         {
             r -= 0.1f;
