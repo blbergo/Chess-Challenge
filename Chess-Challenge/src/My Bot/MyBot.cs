@@ -23,17 +23,17 @@ public class MyBot : IChessBot
             this.pieceCount = countPieces(board, this.color);
         }
 
-        Dictionary<double, Move> qMap = Q(board, actions, timer, 3);
+        Dictionary<double, Move> qMap = Q(board, actions, timer, 3, 3);
         Move decision = policy(qMap);
 
         this.pieceCount = countPieces(board, this.color);
+        this.iteration += 1;
 
-        iteration += 1;
-
+        Console.WriteLine(this.QValue);
         return decision;
     }
 
-    private Dictionary<double, Move> Q(Board board, Move[] moves, Timer timer, int steps)
+    private Dictionary<double, Move> Q(Board board, Move[] moves, Timer timer, int localSteps, int GlobalSteps)
     {
         //learning rate, discount
         double a = 0.1f;
@@ -42,22 +42,29 @@ public class MyBot : IChessBot
         Dictionary<double, Move> qMap = new Dictionary<double, Move>();
         double q = 0.0f;
 
-        if (steps > 0)
+        if (localSteps > 0)
         {
             foreach (Move move in moves)
             {
+                //calculate the reward before the move is made
+                double r = reward(board, move, timer);
+
                 board.MakeMove(move);
                 //Q-value equation
                 q =
                     (1 - a) * this.QValue
                     + a
                         * (
-                            reward(board, move, timer)
+                            r
                             + y
-                            + maxDouble(Q(board, board.GetLegalMoves(), timer, steps - 1))
+                            + maxDouble(Q(board, board.GetLegalMoves(), timer, localSteps - 1, GlobalSteps))
                         );
 
-                qMap.Add(q, move);
+                //only add moves in order
+                if(localSteps == GlobalSteps) 
+                {
+                    qMap.Add(q, move);
+                }
 
                 board.UndoMove(move);
             }
@@ -103,29 +110,30 @@ public class MyBot : IChessBot
         //penalize if in check
         if(board.IsInCheck()) 
         {
-            r -= 0.5f;
+            r -= 1.0f;
         }
         
         //penalize losing pieces
         //TODO: penalize based off of loss
         if(this.pieceCount < countPieces(board, this.color)) 
         {
-            r -= 0.1f;
+            r -= 0.5f;
         }
 
-        return r + rand.NextDouble();
+        return (r - board.PlyCount * 0.01f) + rand.NextDouble() * 0.00001f;
     }
 
     private Move policy(Dictionary<double, Move> qMap)
     {
         double key = maxDouble(qMap);
+        this.QValue = key;
         return qMap[key];
     }
 
     //did not expect to have to write my own max function
     private double maxDouble(Dictionary<double, Move> array)
     {
-        double max = 0.0f;
+        double max = minDouble(array);
         foreach (KeyValuePair<double, Move> item in array)
         {
             if (item.Key > max)
@@ -134,6 +142,19 @@ public class MyBot : IChessBot
             }
         }
         return max;
+    }
+
+    private double minDouble(Dictionary<double, Move> array)
+    {
+        double min = 0.0f;
+        foreach (KeyValuePair<double, Move> item in array)
+        {
+            if (item.Key < min)
+            {
+                min = item.Key;
+            }
+        }
+        return min;
     }
 
     int countPieces(Board board, string color) 
